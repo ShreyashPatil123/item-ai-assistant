@@ -291,7 +291,7 @@ class SlideUpPanel:
             self.initialize()
         
         self.running = True
-        logger.info("🎨 SlideUpPanel started")
+        logger.info("[UI] SlideUpPanel started")
         
         try:
             self.root.mainloop()
