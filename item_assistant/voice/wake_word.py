@@ -57,21 +57,21 @@ class WakeWordDetector:
                 sensitivities=[sensitivity] * len(keywords)
             )
             
-            logger.info(f"✅ Wake word detector initialized - CONTINUOUS MODE")
-            logger.info(f"🎤 Keywords: {', '.join(keywords)} (sensitivity: 0.9)")
+            logger.info(f"[OK] Wake word detector initialized - CONTINUOUS MODE")
+            logger.info(f"[KEYWORDS] Keywords: {', '.join(keywords)} (sensitivity: 0.9)")
         
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Porcupine: {e}")
+            logger.error(f"[ERROR] Failed to initialize Porcupine: {e}")
             self.porcupine = None
     
     def start_listening(self):
         """Start listening for wake word - CONTINUOUS MODE"""
         if not self.porcupine:
-            logger.error("❌ Porcupine not initialized")
+            logger.error("[ERROR] Porcupine not initialized")
             return
         
         if self.is_listening:
-            logger.warning("⚠️ Already listening")
+            logger.warning("[WARN] Already listening")
             return
         
         try:
@@ -87,7 +87,7 @@ class WakeWordDetector:
             )
             
             self.is_listening = True
-            logger.info("👂 CONTINUOUS LISTENING MODE ACTIVE")
+            logger.info("[LISTEN] CONTINUOUS LISTENING MODE ACTIVE")
             
             # CONTINUOUS LISTEN LOOP - Never stops except on error
             frame_count = 0
@@ -104,12 +104,12 @@ class WakeWordDetector:
                     # Log every 100 frames to show continuous listening
                     frame_count += 1
                     if frame_count % 100 == 0:
-                        logger.debug(f"🎤 Audio frame processed (frame #{frame_count})")
+                        logger.debug(f"[FRAME] Audio frame processed (frame #{frame_count})")
                     
                     if keyword_index >= 0:
                         keywords = ['porcupine', 'picovoice', 'bumblebee']
                         detected_word = keywords[keyword_index] if keyword_index < len(keywords) else "unknown"
-                        logger.info(f"🎯 WAKE DETECTED: '{detected_word}' (frame #{frame_count})")
+                        logger.info(f"[WAKE] WAKE DETECTED: '{detected_word}' (frame #{frame_count})")
                         
                         # Trigger callback but KEEP LISTENING
                         if self.on_wake_word:
@@ -132,7 +132,7 @@ class WakeWordDetector:
                     continue
         
         except Exception as e:
-            logger.error(f"❌ Fatal error in wake word detection: {e}")
+            logger.error(f"[ERROR] Fatal error in wake word detection: {e}")
         
         finally:
             self.stop_listening()
@@ -155,7 +155,7 @@ class WakeWordDetector:
                 pass
             self.pa = None
         
-        logger.info("🛑 Stopped listening")
+        logger.info("[STOP] Stopped listening")
     
     def cleanup(self):
         """Clean up resources"""
