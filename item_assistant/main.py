@@ -49,11 +49,11 @@ class ItemAssistant:
         """Callback when wake word is detected - OPTIMIZED"""
         # Skip if already processing
         if self.processing_command:
-            logger.warning("⏭️  IGNORED: Still processing previous command")
+            logger.warning("[SKIP] IGNORED: Still processing previous command")
             return
         
         self.processing_command = True
-        logger.info("🎯 WAKE DETECTED - Starting command handler thread")
+        logger.info("[WAKE] WAKE DETECTED - Starting command handler thread")
         
         # Update UI state
         self.ui_state_manager.update_state(AssistantState.LISTENING)
@@ -68,7 +68,7 @@ class ItemAssistant:
     def _handle_command_async(self):
         """Handle command processing in separate thread (non-blocking)"""
         try:
-            logger.info("🎯 Wake word detected! Listening for command...")
+            logger.info("[LISTEN] Wake word detected! Listening for command...")
             
             # Speak acknowledgment (non-blocking - don't wait)
             self.tts.speak("Yes?", wait=False)
@@ -80,7 +80,7 @@ class ItemAssistant:
             
             if result.get("success"):
                 command = result.get("text", "")
-                logger.info(f"📝 Heard command: {command}")
+                logger.info(f"[CMD] Heard command: {command}")
                 
                 # Update UI with user command
                 self.ui_state_manager.update_state(
@@ -91,11 +91,11 @@ class ItemAssistant:
                 # Process command (asyncio.run is OK here - we're in a separate thread)
                 asyncio.run(self.orchestrator.process_command(command, source="laptop"))
             else:
-                logger.warning(f"❌ Failed to transcribe: {result.get('error')}")
+                logger.warning(f"[ERROR] Failed to transcribe: {result.get('error')}")
                 self.tts.speak("Sorry, I didn't catch that.", wait=False)
         
         except Exception as e:
-            logger.error(f"Error processing wake word: {e}", exc_info=True)
+            logger.error(f"[ERROR] Error processing wake word: {e}", exc_info=True)
             self.tts.speak("An error occurred.", wait=False)
         
         finally:
@@ -105,7 +105,7 @@ class ItemAssistant:
             # Update UI back to idle
             self.ui_state_manager.update_state(AssistantState.IDLE)
             
-            logger.info("✅ READY FOR NEXT WAKE WORD")
+            logger.info("[OK] READY FOR NEXT WAKE WORD")
     
     def start_voice_listener(self):
         """Start voice listening in background thread"""
@@ -124,7 +124,7 @@ class ItemAssistant:
             daemon=True
         )
         listener_thread.start()
-        logger.info("👂 Voice listener started (continuous mode)")
+        logger.info("[VOICE] Voice listener started (continuous mode)")
     
     def start_api_server(self):
         """Start API server in background thread"""
@@ -133,18 +133,18 @@ class ItemAssistant:
             daemon=True
         )
         api_thread.start()
-        logger.info("🌐 API server started")
+        logger.info("[API] API server started")
     
     def _on_ui_mic_click(self):
         """Handle mic button click from UI"""
-        logger.info("🎤 Manual mic activation from UI")
+        logger.info("[MIC] Manual mic activation from UI")
         # Trigger the same flow as wake word detection
         self.on_wake_word_detected()
     
     def start_ui_panel(self):
         """Start the desktop UI panel"""
         if not self.config.get("ui.enable_slideup_panel", True):
-            logger.info("UI panel disabled in config")
+            logger.info("[UI] UI panel disabled in config")
             return
         
         try:
@@ -158,9 +158,9 @@ class ItemAssistant:
                 daemon=True
             )
             panel_thread.start()
-            logger.info("🎨 Desktop UI panel started")
+            logger.info("[UI] Desktop UI panel started")
         except Exception as e:
-            logger.warning(f"⚠️ Failed to start UI panel (continuing without UI): {e}")
+            logger.warning(f"[WARN] Failed to start UI panel (continuing without UI): {e}")
             self.slide_up_panel = None
     
     def run(self):
@@ -169,7 +169,7 @@ class ItemAssistant:
             self.running = True
             
             # Start components
-            logger.info("🚀 Starting Item AI Assistant...")
+            logger.info("[START] Starting Item AI Assistant...")
             
             # Start API server
             self.start_api_server()
@@ -185,11 +185,11 @@ class ItemAssistant:
             self.tts.speak(f"Hello {user_name}, Item is online and ready.")
             
             logger.info("=" * 80)
-            logger.info("✅ Item AI Assistant is now running")
-            logger.info("🎤 Say wake word (porcupine/picovoice/bumblebee) + command")
-            logger.info("⚡ Optimized: 3s recording, synchronous transcription, Groq STT")
-            logger.info("🎨 Desktop UI panel enabled")
-            logger.info("🛑 Press Ctrl+C to stop")
+            logger.info("[OK] Item AI Assistant is now running")
+            logger.info("[MIC] Say wake word (porcupine/picovoice/bumblebee) + command")
+            logger.info("[FAST] Optimized: 3s recording, synchronous transcription, Groq STT")
+            logger.info("[UI] Desktop UI panel enabled")
+            logger.info("[STOP] Press Ctrl+C to stop")
             logger.info("=" * 80)
             
             # Keep running
@@ -198,11 +198,11 @@ class ItemAssistant:
                 time.sleep(1)
         
         except KeyboardInterrupt:
-            logger.info("Shutting down...")
+            logger.info("[STOP] Shutting down...")
             self.shutdown()
         
         except Exception as e:
-            logger.error(f"Fatal error: {e}", exc_info=True)
+            logger.error(f"[ERROR] Fatal error: {e}", exc_info=True)
             self.shutdown()
     
     def shutdown(self):
@@ -217,7 +217,7 @@ class ItemAssistant:
         
         self.tts.speak("Goodbye!")
         
-        logger.info("Item AI Assistant shut down")
+        logger.info("[OK] Item AI Assistant shut down")
         sys.exit(0)
 
 
