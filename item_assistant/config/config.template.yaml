@@ -1,0 +1,179 @@
+# ================================================================
+# ITEM AI ASSISTANT - CONFIGURATION FILE
+# ================================================================
+# This file contains all configuration for the Item assistant.
+# Copy this to config.yaml and customize with your settings.
+# ================================================================
+
+# System Settings
+system:
+  name: "Item"
+  version: "1.0.0"
+  user_name: "Shreyash"  # Your name
+  log_directory: "C:\\Users\\Shreyash\\ItemAssistant\\logs"
+  data_directory: "C:\\Users\\Shreyash\\ItemAssistant\\data"
+  startup_delay_seconds: 30
+
+# Security & Authentication
+security:
+  auth_token: ""  # Auto-generated on first run, or set your own
+  enable_ip_whitelist: false
+  allowed_ips:
+    - "192.168.1.0/24"  # Your local subnet
+  require_confirmation_for:
+    - "close_app"
+    - "run_command"
+    - "modify_file"
+
+# Network & API Server
+network:
+  api_port: 8765
+  websocket_port: 8766
+  enable_lan: true
+  enable_remote: true
+  tunnel_service: "tailscale"  # Options: tailscale, ngrok, custom
+
+# Voice Settings
+voice:
+  wake_word:
+    enabled: true
+    word: "Item"
+    sensitivity: 0.5  # 0.0 to 1.0
+    access_key: ""  # Picovoice access key - get from console.picovoice.ai
+  
+  stt:
+    prefer_online: true  # Use online when available
+    offline_model: "base"  # whisper model: tiny, base, small, medium
+    online_provider: "groq"  # groq or google
+    languages:
+      - "hi"  # Hindi
+      - "en"  # English
+      - "mr"  # Marathi
+    auto_detect_language: true
+  
+  tts:
+    enabled: true
+    engine: "pyttsx3"  # Local TTS
+    voice_id: 0  # 0 for first available voice
+    rate: 175  # Words per minute
+    volume: 0.9  # 0.0 to 1.0
+    language: "en"  # Default language for responses
+
+# LLM Configuration
+llm:
+  # Routing Logic
+  routing:
+    default_mode: "auto"  # auto, local, online
+    use_online_for:
+      - "complex_code"
+      - "multi_file_refactor"
+      - "web_research"
+      - "advanced_debugging"
+    use_local_for:
+      - "quick_commands"
+      - "intent_parsing"
+      - "simple_code"
+      - "offline"
+  
+  # Local LLM (Ollama)
+  local:
+    enabled: true
+    base_url: "http://localhost:11434"
+    models:
+      general: "llama3.2:3b"  # General purpose
+      code: "codegemma:7b"    # Code-focused
+    timeout: 60
+    context_length: 4096
+  
+  # Online LLMs (Free Tier)
+  online:
+    primary: "groq"
+    fallback: "gemini"
+    
+    groq:
+      enabled: true
+      api_key: ""  # Get from console.groq.com
+      model: "llama-3.3-70b-versatile"
+      max_tokens: 8000
+      temperature: 0.7
+    
+    gemini:
+      enabled: true
+      api_key: ""  # Get from ai.google.dev
+      model: "gemini-2.0-flash-exp"
+      max_tokens: 8000
+      temperature: 0.7
+
+# Desktop Automation
+desktop:
+  # Safe folders for file operations
+  safe_folders:
+    - "C:\\Users\\Shreyash\\Documents"
+    - "C:\\Users\\Shreyash\\Downloads"
+    - "C:\\Users\\Shreyash\\Desktop"
+    - "D:\\Projects"
+    - "C:\\Users\\Shreyash\\ItemAssistant\\data"
+  
+  # Forbidden folders (never touch)
+  forbidden_folders:
+    - "C:\\Windows"
+    - "C:\\Program Files"
+    - "C:\\Program Files (x86)"
+    - "C:\\ProgramData"
+  
+  # Browser preferences
+  browser:
+    default: "chrome"  # chrome, edge, firefox
+    driver_path: "auto"  # auto-download or specify path
+  
+  # Coding projects
+  projects:
+    root_directory: "D:\\Projects"
+    default_language: "python"
+    build_commands:
+      python: "python {file}"
+      javascript: "node {file}"
+      java: "javac {file} && java {class}"
+      cpp: "g++ {file} -o {output} && {output}"
+      c: "gcc {file} -o {output} && {output}"
+
+# Permissions
+permissions:
+  # Apps that don't require confirmation (pre-approved)
+  auto_approved_apps:
+    - "notepad"
+    - "calculator"
+  
+  # Apps that are always blocked
+  blocked_apps:
+    - "regedit"
+    - "cmd"  # Use shell_executor with confirmation instead
+  
+  # File to store app permissions
+  permissions_file: "allowed_apps.json"
+
+# Wake-on-LAN
+wol:
+  enabled: true
+  mac_address: ""  # Your laptop's MAC address (auto-detected on first run)
+  broadcast_ip: "192.168.1.255"  # Your network's broadcast address
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  console_output: true
+  file_output: true
+  max_file_size_mb: 10
+  backup_count: 30  # Keep 30 days of logs
+  format: "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+
+# Resource Management
+resources:
+  max_ram_gb: 10  # Max RAM for LLM models
+  gpu_monitoring:
+    enabled: true
+    downgrade_on_high_usage: true
+    usage_threshold: 80  # Percent
+  cpu_monitoring:
+    enabled: true
+    max_cpu_percent: 70

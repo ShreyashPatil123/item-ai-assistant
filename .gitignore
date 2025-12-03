@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Configuration (sensitive)
+item_assistant/config/config.yaml
+item_assistant/config/allowed_apps.json
+item_assistant/config/.env
+*.secret
+*.token
+
+# API keys
+.env
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android
+android_app/build/
+android_app/.gradle/
+android_app/local.properties
+android_app/*.apk
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Ollama models (large files)
+*.gguf

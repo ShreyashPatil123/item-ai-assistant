@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Item Assistant</string>
+    <string name="voice_button">🎤 Voice</string>
+    <string name="send_button">Send</string>
+    <string name="settings_button">⚙️ Settings</string>
+    <string name="history_button">📜 History</string>
+    <string name="status_online">🟢 Online</string>
+    <string name="status_offline">🔴 Offline</string>
+    <string name="auth_token_hint">Auth Token</string>
+    <string name="laptop_ip_hint">Laptop IP</string>
+    <string name="port_hint">Port (default: 8765)</string>
+    <string name="test_connection">Test Connection</string>
+    <string name="save_settings">Save Settings</string>
+    <string name="connection_success">✅ Connected successfully!</string>
+    <string name="connection_failed">❌ Connection failed</string>
+</resources>
