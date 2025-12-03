@@ -51,7 +51,7 @@ class ConfigManager:
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     f.write(template_content)
                 
-                print(f"✓ Created config file at: {self.config_path}")
+                print(f"[OK] Created config file at: {self.config_path}")
             else:
                 raise FileNotFoundError(f"Template config not found: {self.template_path}")
         
@@ -59,7 +59,7 @@ class ConfigManager:
         with open(self.config_path, 'r', encoding='utf-8') as f:
             self.config = yaml.safe_load(f)
         
-        print(f"✓ Loaded configuration from: {self.config_path}")
+        print(f"[OK] Loaded configuration from: {self.config_path}")
     
     def _ensure_directories(self):
         """Create required directories if they don't exist"""
@@ -69,7 +69,7 @@ class ConfigManager:
         log_dir.mkdir(parents=True, exist_ok=True)
         data_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"✓ Ensured directories exist")
+        print(f"[OK] Ensured directories exist")
     
     def _auto_generate_values(self):
         """Auto-generate missing configuration values"""
@@ -80,7 +80,7 @@ class ConfigManager:
             token = secrets.token_urlsafe(32)
             self.set("security.auth_token", token)
             updated = True
-            print(f"✓ Generated auth token: {token[:16]}...")
+            print(f"[OK] Generated auth token: {token[:16]}...")
         
         # Detect MAC address for Wake-on-LAN
         if not self.get("wol.mac_address"):
@@ -88,7 +88,7 @@ class ConfigManager:
             if mac:
                 self.set("wol.mac_address", mac)
                 updated = True
-                print(f"✓ Detected MAC address: {mac}")
+                print(f"[OK] Detected MAC address: {mac}")
         
         # Save if updated
         if updated:
