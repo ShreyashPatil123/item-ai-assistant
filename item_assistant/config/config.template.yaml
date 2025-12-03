@@ -177,3 +177,12 @@ resources:
   cpu_monitoring:
     enabled: true
     max_cpu_percent: 70
+
+# Desktop UI - Slide-Up Panel
+ui:
+  enable_slideup_panel: true  # Enable bottom slide-up panel
+  idle_hide_timeout_seconds: 5  # Auto-hide after this many seconds of idle
+  panel_width: 1200  # Panel width in pixels
+  panel_height: 140  # Panel height in pixels
+  animation_speed_ms: 20  # Animation frame rate
+  animation_step_px: 15  # Pixels per animation frame
