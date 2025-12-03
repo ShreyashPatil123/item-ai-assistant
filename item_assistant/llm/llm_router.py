@@ -28,7 +28,40 @@ class LLMRouter:
         self.online_tasks = self.config.get("llm.routing.use_online_for", [])
         self.local_tasks = self.config.get("llm.routing.use_local_for", [])
         
-        logger.info(f"LLM Router initialized (default mode: {self.default_mode})")
+        # Timeouts for LLM providers
+        self.LOCAL_TIMEOUT = 2  # seconds
+        self.ONLINE_TIMEOUT = 5  # seconds
+        
+        logger.info(f"[LLM] LLM Router initialized (default mode: {self.default_mode})")
+        
+        # Verify LLM availability at startup
+        self._verify_llm_availability()
+    
+    def _verify_llm_availability(self):
+        """Verify LLM availability at startup"""
+        logger.info("[LLM] Verifying LLM availability...")
+        
+        # Check local LLM
+        try:
+            logger.info("[LLM] Checking local LLM (Ollama)...")
+            if self.local_llm and self.local_llm.is_available():
+                logger.info("[LLM] Local LLM: OK")
+            else:
+                logger.warning("[LLM] Local LLM: Not available")
+        except Exception as e:
+            logger.warning(f"[LLM] Local LLM check failed: {e}")
+        
+        # Check online LLM
+        try:
+            logger.info("[LLM] Checking online LLM (Groq)...")
+            if self.online_llm and self.online_llm.is_available():
+                logger.info("[LLM] Online LLM: OK")
+            else:
+                logger.warning("[LLM] Online LLM: Not available")
+        except Exception as e:
+            logger.warning(f"[LLM] Online LLM check failed: {e}")
+        
+        logger.info("[LLM] LLM availability check complete")
     
     def is_internet_available(self) -> bool:
         """
@@ -100,7 +133,7 @@ class LLMRouter:
                 temperature: float = 0.7, force_local: bool = False,
                 force_online: bool = False) -> Dict:
         """
-        Generate text using appropriate LLM
+        Generate text using appropriate LLM with fallback chain
         
         Args:
             prompt: User prompt
@@ -114,43 +147,58 @@ class LLMRouter:
         Returns:
             Dictionary with generated text and metadata
         """
+        logger.info(f"[LLM] Generate called: task_type={task_type}, force_local={force_local}, force_online={force_online}")
+        
         # Determine which LLM to use
         use_online = False
         
         if force_online:
             use_online = True
+            logger.info("[LLM] Forced online mode")
         elif force_local:
             use_online = False
+            logger.info("[LLM] Forced local mode")
         else:
             use_online = self.should_use_online(task_type, len(prompt))
         
-        # Try selected LLM
+        # Try selected LLM with fallback chain
         if use_online:
-            logger.info("Using online LLM")
+            logger.info("[LLM] Primary: Online (Groq)")
             result = self.online_llm.generate(prompt, system, max_tokens, temperature)
             
             # Fallback to local if online fails
             if not result.get("success"):
-                logger.warning("Online LLM failed, falling back to local")
+                logger.warning(f"[LLM] Online LLM failed: {result.get('error')}, falling back to local")
                 result = self.local_llm.generate(prompt, system=system,
                                                max_tokens=max_tokens, temperature=temperature)
                 if result.get("success"):
+                    logger.info("[LLM] Fallback to local succeeded")
                     result["fallback"] = True
                     result["fallback_reason"] = "Online LLM API failed"
+                else:
+                    logger.error(f"[LLM] Both online and local failed: {result.get('error')}")
         
         else:
-            logger.info("Using local LLM")
+            logger.info("[LLM] Primary: Local (Ollama)")
             result = self.local_llm.generate(prompt, system=system,
                                            max_tokens=max_tokens, temperature=temperature)
             
             # If local fails and online is available, fallback
-            if not result.get("success") and self.online_llm.is_available():
-                logger.warning("Local LLM failed, falling back to online")
-                result = self.online_llm.generate(prompt, system, max_tokens, temperature)
-                if result.get("success"):
-                    result["fallback"] = True
-                    result["fallback_reason"] = "Local LLM failed"
+            if not result.get("success"):
+                logger.warning(f"[LLM] Local LLM failed: {result.get('error')}")
+                if self.online_llm.is_available():
+                    logger.info("[LLM] Falling back to online (Groq)")
+                    result = self.online_llm.generate(prompt, system, max_tokens, temperature)
+                    if result.get("success"):
+                        logger.info("[LLM] Fallback to online succeeded")
+                        result["fallback"] = True
+                        result["fallback_reason"] = "Local LLM failed"
+                    else:
+                        logger.error(f"[LLM] Fallback to online also failed: {result.get('error')}")
+                else:
+                    logger.error("[LLM] Online LLM not available, cannot fallback")
         
+        logger.info(f"[LLM] Generate result: success={result.get('success')}, provider={result.get('provider')}")
         return result
     
     def generate_code(self, prompt: str, language: Optional[str] = None,

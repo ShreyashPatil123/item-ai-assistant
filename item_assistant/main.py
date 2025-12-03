@@ -68,41 +68,67 @@ class ItemAssistant:
     def _handle_command_async(self):
         """Handle command processing in separate thread (non-blocking)"""
         try:
+            logger.info("[PROCESS] Starting command processing thread")
             logger.info("[LISTEN] Wake word detected! Listening for command...")
             
-            # Speak acknowledgment (non-blocking - don't wait)
+            # Step 1: Speak acknowledgment
+            logger.info("[TTS] Speaking acknowledgment...")
             self.tts.speak("Yes?", wait=False)
+            logger.info("[TTS] Acknowledgment spoken")
             
-            # Record and transcribe - SYNCHRONOUS blocking call
-            # This will block for ~5-8 seconds total (3s record + 2-5s transcribe)
-            # But we're already in a background thread, so wake word detector keeps running
+            # Step 2: Record and transcribe with detailed logging
+            logger.info("[STT] Calling listen_and_transcribe(duration=3)...")
             result = self.stt.listen_and_transcribe(duration=3)
+            logger.info(f"[STT] Result received: {result}")
+            
+            if not result:
+                logger.error("[STT_ERROR] Result is None!")
+                self.tts.speak("No audio received", wait=False)
+                return
             
             if result.get("success"):
-                command = result.get("text", "")
-                logger.info(f"[CMD] Heard command: {command}")
+                command = result.get("text", "").strip()
+                if not command:
+                    logger.warning("[CMD_ERROR] Transcribed text is empty")
+                    self.tts.speak("I heard silence", wait=False)
+                    return
                 
-                # Update UI with user command
+                logger.info(f"[CMD] Transcribed command: '{command}'")
+                
+                # Step 3: Update UI
+                logger.info("[UI] Updating UI state to THINKING...")
                 self.ui_state_manager.update_state(
                     AssistantState.THINKING, 
                     user_text=command
                 )
+                logger.info("[UI] State updated to THINKING")
                 
-                # Process command (asyncio.run is OK here - we're in a separate thread)
-                asyncio.run(self.orchestrator.process_command(command, source="laptop"))
+                # Step 4: Process command with error handling
+                logger.info("[EXEC] Processing command with orchestrator...")
+                try:
+                    logger.info(f"[EXEC] Calling orchestrator.process_command('{command}', source='laptop')")
+                    result = asyncio.run(
+                        self.orchestrator.process_command(command, source="laptop")
+                    )
+                    logger.info(f"[EXEC] Command executed successfully: {result}")
+                except Exception as exec_error:
+                    logger.error(f"[EXEC_ERROR] Orchestrator error: {exec_error}", exc_info=True)
+                    error_msg = f"Execution error: {str(exec_error)[:50]}"
+                    self.tts.speak(error_msg, wait=False)
             else:
-                logger.warning(f"[ERROR] Failed to transcribe: {result.get('error')}")
-                self.tts.speak("Sorry, I didn't catch that.", wait=False)
-        
+                error_msg = result.get("error", "Unknown error")
+                logger.warning(f"[STT_FAIL] Transcription failed: {error_msg}")
+                self.tts.speak("Sorry, I didn't catch that", wait=False)
+            
         except Exception as e:
-            logger.error(f"[ERROR] Error processing wake word: {e}", exc_info=True)
-            self.tts.speak("An error occurred.", wait=False)
+            logger.error(f"[CRITICAL] Unexpected error in command processing: {e}", exc_info=True)
+            self.tts.speak("An error occurred", wait=False)
         
         finally:
-            # CRITICAL: Always reset flag so next wake word can be processed
+            logger.info("[CLEANUP] Resetting processing_command flag")
             self.processing_command = False
             
-            # Update UI back to idle
+            logger.info("[UI] Updating UI state to IDLE")
             self.ui_state_manager.update_state(AssistantState.IDLE)
             
             logger.info("[OK] READY FOR NEXT WAKE WORD")

@@ -88,6 +88,7 @@ class WakeWordDetector:
             
             self.is_listening = True
             logger.info("[LISTEN] CONTINUOUS LISTENING MODE ACTIVE")
+            logger.info("[LISTEN] Listening loop started - will continue until stop_listening() is called")
             
             # CONTINUOUS LISTEN LOOP - Never stops except on error
             frame_count = 0
@@ -101,10 +102,10 @@ class WakeWordDetector:
                     
                     keyword_index = self.porcupine.process(pcm)
                     
-                    # Log every 100 frames to show continuous listening
+                    # Log every 1000 frames to show continuous listening
                     frame_count += 1
-                    if frame_count % 100 == 0:
-                        logger.debug(f"[FRAME] Audio frame processed (frame #{frame_count})")
+                    if frame_count % 1000 == 0:
+                        logger.info(f"[LISTEN] Still listening... (frame #{frame_count})")
                     
                     if keyword_index >= 0:
                         keywords = ['porcupine', 'picovoice', 'bumblebee']
@@ -114,21 +115,24 @@ class WakeWordDetector:
                         # Trigger callback but KEEP LISTENING
                         if self.on_wake_word:
                             # Run callback in separate thread to not block listening
+                            logger.info("[CALLBACK] Wake word callback thread starting...")
                             import threading
                             callback_thread = threading.Thread(
                                 target=self.on_wake_word,
                                 daemon=True
                             )
                             callback_thread.start()
+                            logger.info("[CALLBACK] Wake word callback thread started")
                         
-                        # CRITICAL: Don't stop listening! Continue the loop
+                        # CRITICAL: Don't stop listening! Continue the loop immediately
+                        logger.info("[LISTEN] Continuing to listen for next wake word...")
                     
                 except IOError as e:
                     # Handle audio buffer overflow gracefully
-                    logger.debug(f"Audio buffer issue (continuing): {e}")
+                    logger.debug(f"[AUDIO] Audio buffer issue (continuing): {e}")
                     continue
                 except Exception as e:
-                    logger.error(f"Error in detection loop: {e}")
+                    logger.error(f"[LOOP_ERROR] Error in detection loop: {e}")
                     continue
         
         except Exception as e:

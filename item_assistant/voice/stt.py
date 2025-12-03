@@ -41,26 +41,52 @@ class STT:
         if api_key:
             try:
                 self.groq_client = Groq(api_key=api_key)
-                logger.info("✅ Groq STT client initialized (FAST MODE)")
+                logger.info("[STT] Groq STT client initialized (FAST MODE)")
+                # Verify Groq connection at startup
+                self._verify_groq_connection()
             except Exception as e:
-                logger.error(f"Failed to initialize Groq STT: {e}")
+                logger.error(f"[STT_ERROR] Failed to initialize Groq STT: {e}")
                 self._load_whisper_model()  # Load fallback
         else:
-            logger.warning("No Groq API key - loading Whisper fallback")
+            logger.warning("[STT_WARN] No Groq API key - loading Whisper fallback")
             self._load_whisper_model()
         
-        logger.info(f"STT initialized - OPTIMIZED (prefer: Groq)")
+        logger.info(f"[STT] STT initialized - OPTIMIZED (prefer: Groq)")
+    
+    def _verify_groq_connection(self):
+        """Verify Groq API connection at startup"""
+        try:
+            logger.info("[STT] Verifying Groq API connection...")
+            # Try a simple test call
+            import io
+            import soundfile as sf
+            # Create a tiny test audio
+            test_audio = np.zeros(16000, dtype=np.float32)  # 1 second of silence
+            audio_bytes = io.BytesIO()
+            sf.write(audio_bytes, test_audio, 16000, format='WAV')
+            audio_bytes.seek(0)
+            audio_bytes.name = "test.wav"
+            
+            # Test the connection
+            self.groq_client.audio.transcriptions.create(
+                file=audio_bytes,
+                model="whisper-large-v3",
+                response_format="text"
+            )
+            logger.info("[STT] Groq API: Connected and working")
+        except Exception as e:
+            logger.warning(f"[STT_WARN] Groq API test failed: {e}")
     
     def _load_whisper_model(self):
         """Load Whisper model for offline STT (fallback)"""
         if self.whisper_model:
             return  # Already loaded
         try:
-            logger.info(f"Loading Whisper model: {self.offline_model_size}")
+            logger.info("[STT] Loading Whisper model: {self.offline_model_size}")
             self.whisper_model = whisper.load_model(self.offline_model_size)
-            logger.info("Whisper model loaded")
+            logger.info("[STT] Whisper model loaded successfully")
         except Exception as e:
-            logger.error(f"Failed to load Whisper model: {e}")
+            logger.error(f"[STT_ERROR] Failed to load Whisper model: {e}")
             self.whisper_model = None
     
     def record_audio(self, duration: int = 3, sample_rate: int = 16000) -> np.ndarray:
@@ -74,23 +100,30 @@ class STT:
         Returns:
             Audio data as numpy array
         """
-        logger.info(f"🎤 Recording ({duration}s)...")
-        audio = sd.rec(
-            int(duration * sample_rate),
-            samplerate=sample_rate,
-            channels=1,
-            dtype='float32'
-        )
-        sd.wait()
-        logger.info("✅ Recording done")
-        return audio.flatten()
+        logger.info(f"[STT] Starting audio capture ({duration}s at {sample_rate}Hz)...")
+        try:
+            audio = sd.rec(
+                int(duration * sample_rate),
+                samplerate=sample_rate,
+                channels=1,
+                dtype='float32'
+            )
+            sd.wait()
+            audio_flat = audio.flatten()
+            logger.info(f"[STT] Audio captured: {len(audio_flat)} samples ({len(audio_flat)/sample_rate:.2f}s)")
+            return audio_flat
+        except Exception as e:
+            logger.error(f"[STT_ERROR] Failed to record audio: {e}", exc_info=True)
+            raise
     
     def transcribe_offline(self, audio: np.ndarray, language: Optional[str] = None) -> Dict:
         """Transcribe using offline Whisper (SLOW - fallback only)"""
+        logger.info("[STT] Attempting offline transcription with Whisper...")
         if not self.whisper_model:
             self._load_whisper_model()  # Lazy load if needed
         
         if not self.whisper_model:
+            logger.error("[STT_ERROR] Whisper model not loaded")
             return {
                 "success": False,
                 "error": "Whisper model not loaded",
@@ -98,6 +131,7 @@ class STT:
             }
         
         try:
+            logger.info(f"[STT] Transcribing with Whisper (language: {language or 'auto'})...")
             result = self.whisper_model.transcribe(
                 audio,
                 language=language,
@@ -107,7 +141,7 @@ class STT:
             text = result.get("text", "").strip()
             detected_language = result.get("language", "unknown")
             
-            logger.info(f"Offline STT: '{text}' (lang: {detected_language})")
+            logger.info(f"[STT] Whisper result: '{text}' (lang: {detected_language})")
             
             return {
                 "success": True,
@@ -117,7 +151,7 @@ class STT:
             }
         
         except Exception as e:
-            logger.error(f"Offline STT failed: {e}")
+            logger.error(f"[STT_ERROR] Offline transcription failed: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
@@ -126,7 +160,9 @@ class STT:
     
     def transcribe_online(self, audio: np.ndarray, language: Optional[str] = None) -> Dict:
         """Transcribe using Groq (FAST - primary method)"""
+        logger.info("[STT] Attempting online transcription with Groq...")
         if not self.groq_client:
+            logger.error("[STT_ERROR] Groq client not available")
             return {
                 "success": False,
                 "error": "Groq STT not available",
@@ -135,12 +171,15 @@ class STT:
         
         try:
             # Convert to WAV format in memory
+            logger.info("[STT] Converting audio to WAV format...")
             audio_bytes = io.BytesIO()
             sf.write(audio_bytes, audio, 16000, format='WAV')
             audio_bytes.seek(0)
             audio_bytes.name = "audio.wav"
+            logger.info(f"[STT] WAV file created: {audio_bytes.getbuffer().nbytes} bytes")
             
             # Transcribe using Groq Whisper (VERY FAST)
+            logger.info("[STT] Sending to Groq API (whisper-large-v3)...")
             transcription = self.groq_client.audio.transcriptions.create(
                 file=audio_bytes,
                 model="whisper-large-v3",
@@ -149,8 +188,7 @@ class STT:
             )
             
             text = transcription.strip() if isinstance(transcription, str) else transcription.text.strip()
-            
-            logger.info(f"⚡ Groq STT: '{text}'")
+            logger.info(f"[STT] Groq response received: '{text}'")
             
             return {
                 "success": True,
@@ -160,7 +198,7 @@ class STT:
             }
         
         except Exception as e:
-            logger.error(f"Groq STT failed: {e}")
+            logger.error(f"[STT_ERROR] Groq transcription failed: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
@@ -175,17 +213,21 @@ class STT:
         Returns:
             Dictionary with transcription
         """
+        logger.info("[STT] Starting transcription process...")
         # Always try Groq first unless forced offline
         if not force_offline and self.groq_client:
+            logger.info("[STT] Trying Groq first...")
             result = self.transcribe_online(audio, language)
             
             # Fallback to offline only if Groq completely fails
-            if not result.get("success") and self.whisper_model:
-                logger.warning("⚠️ Groq failed, falling back to offline")
+            if not result.get("success"):
+                logger.warning("[STT_WARN] Groq failed, falling back to offline Whisper...")
                 result = self.transcribe_offline(audio, language)
         else:
+            logger.info("[STT] Using offline Whisper (forced or Groq unavailable)...")
             result = self.transcribe_offline(audio, language)
         
+        logger.info(f"[STT] Transcription complete: success={result.get('success')}, provider={result.get('provider')}")
         return result
     
     def listen_and_transcribe(self, duration: int = 3, language: Optional[str] = None) -> Dict:
@@ -204,16 +246,32 @@ class STT:
             Dictionary with transcription result
         """
         try:
-            logger.info(f"🎤 Recording ({duration}s)...")
-            audio = self.record_audio(duration)  # Blocks for 'duration' seconds
-            logger.info("✅ Recording done, transcribing...")
+            logger.info(f"[STT] Starting listen_and_transcribe (duration={duration}s)...")
             
+            # Step 1: Record audio
+            audio = self.record_audio(duration)  # Blocks for 'duration' seconds
+            if audio is None or len(audio) == 0:
+                logger.error("[STT_ERROR] No audio recorded")
+                return {
+                    "success": False,
+                    "error": "No audio recorded",
+                    "text": ""
+                }
+            
+            # Step 2: Transcribe
+            logger.info("[STT] Recording complete, starting transcription...")
             result = self.transcribe(audio, language)  # Blocks for 2-5 seconds (Groq API)
-            logger.info(f"🎯 Transcription complete: {result.get('text', '')}")
+            
+            # Step 3: Log result
+            if result.get("success"):
+                logger.info(f"[STT] Transcription successful: '{result.get('text', '')}'")
+            else:
+                logger.error(f"[STT_ERROR] Transcription failed: {result.get('error', 'Unknown error')}")
+            
             return result
             
         except Exception as e:
-            logger.error(f"Error in transcription: {e}")
+            logger.error(f"[STT_ERROR] Critical error in listen_and_transcribe: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
